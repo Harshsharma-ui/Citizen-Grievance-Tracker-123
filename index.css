@@ -1,0 +1,429 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Map as MapIcon, 
+  User, 
+  LogOut, 
+  Bell, 
+  AlertCircle,
+  Lock,
+  Mail,
+  ChevronRight,
+  Loader2,
+  ShieldCheck,
+  PlusCircle,
+  BarChart3,
+  Building2,
+  Sun,
+  Moon
+} from 'lucide-react';
+import CitizenForm from './components/citizen/CitizenForm';
+import MunicipalHeatmap from './components/dashboard/MunicipalHeatmap';
+import OfficerDashboard from './components/officer/OfficerDashboard';
+import { getComplaints } from './lib/actions';
+import { Complaint } from './lib/supabase';
+import { cn } from './lib/utils';
+
+type View = 'citizen' | 'officer' | 'admin' | 'login';
+
+function Login({ targetRole, onLogin, onBack }: { targetRole: 'admin' | 'officer', onLogin: (role: 'admin' | 'officer') => void, onBack: () => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // Mock authentication
+    setTimeout(() => {
+      if (targetRole === 'officer' && email === 'officer@mumbai.gov.in' && password === 'mumbai_clean_2026') {
+        onLogin('officer');
+      } else if (targetRole === 'admin' && email === 'admin@mumbai.gov.in' && password === 'admin123') {
+        onLogin('admin');
+      } else {
+        setError(`Invalid credentials for ${targetRole}. Please check your email and password.`);
+      }
+      setLoading(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center p-4 py-12">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden my-auto transition-colors duration-300"
+      >
+        <div className="bg-slate-900 dark:bg-slate-950 p-8 text-white text-center relative">
+          <div className="absolute top-4 left-4">
+            <Building2 className="text-slate-700 dark:text-slate-800" size={40} />
+          </div>
+          <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-500/20 rotate-6 border-4 border-white/10">
+            <Lock className="text-white" size={36} strokeWidth={2.5} />
+          </div>
+          <h2 className="text-2xl font-black uppercase tracking-tight">
+            {targetRole === 'admin' ? 'Admin' : 'Officer'} Portal
+          </h2>
+          <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Authorized Access Only</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="p-8 space-y-6">
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold flex items-center space-x-2 border border-red-100 dark:border-red-900/30"
+            >
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </motion.div>
+          )}
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={targetRole === 'admin' ? 'admin@mumbai.gov.in' : 'officer@mumbai.gov.in'}
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all font-medium dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all font-medium dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-center space-x-2 active:scale-95 transition-transform disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : (
+              <>
+                <span>Sign In</span>
+                <ChevronRight size={20} />
+              </>
+            )}
+          </button>
+
+          <button 
+            type="button"
+            onClick={onBack}
+            className="w-full py-4 text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors"
+          >
+            Back to Public View
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [view, setView] = useState<View>('citizen');
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [isConfigured, setIsConfigured] = useState(true);
+  const [userRole, setUserRole] = useState<'admin' | 'officer' | null>(null);
+  const [loginTarget, setLoginTarget] = useState<'admin' | 'officer' | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  // Persistent CitizenForm State
+  const [reportStep, setReportStep] = useState(1);
+  const [reportData, setReportData] = useState({
+    category: '',
+    severity: 'medium' as any,
+    description: '',
+    latitude: 22.7196,
+    longitude: 75.8577,
+    image_url: '',
+  });
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const hasConfig = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+    setIsConfigured(hasConfig);
+
+    const fetchAll = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const data = await getComplaints();
+        setComplaints(data);
+      } catch (err) {
+        console.error('Failed to fetch complaints', err);
+      }
+    };
+    fetchAll();
+
+    const interval = setInterval(fetchAll, 10000); // Increased interval to 10s for stability
+    return () => clearInterval(interval);
+  }, [view]);
+
+  const handleLoginSuccess = (role: 'admin' | 'officer') => {
+    setUserRole(role);
+    setView(role);
+    setLoginTarget(null);
+  };
+
+  const handleLogout = () => {
+    setUserRole(null);
+    setView('citizen');
+    setLoginTarget(null);
+  };
+
+  const navigateToPortal = (target: 'admin' | 'officer') => {
+    if (userRole === target) {
+      setView(target);
+    } else if (userRole && userRole !== target) {
+      // If logged in as one, but trying to access another, maybe logout first or just show login
+      setLoginTarget(target);
+      setView('login');
+    } else {
+      setLoginTarget(target);
+      setView('login');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-900 transition-colors duration-300">
+      <nav className="fixed left-0 top-0 bottom-0 w-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden md:flex flex-col items-center py-8 space-y-8 z-50">
+        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 rotate-3">
+          <ShieldCheck size={24} />
+        </div>
+        
+        <div className="flex-1 flex flex-col space-y-4">
+          <button 
+            onClick={() => setView('citizen')}
+            className={cn("p-4 rounded-2xl transition-all group relative", view === 'citizen' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}
+          >
+            <PlusCircle size={24} />
+            <span className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Report</span>
+          </button>
+          
+          <button 
+            onClick={() => navigateToPortal('officer')}
+            className={cn("p-4 rounded-2xl transition-all group relative", view === 'officer' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}
+          >
+            <User size={24} />
+            <span className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Officer Portal</span>
+          </button>
+
+          <button 
+            onClick={() => navigateToPortal('admin')}
+            className={cn("p-4 rounded-2xl transition-all group relative", view === 'admin' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800")}
+          >
+            <BarChart3 size={24} />
+            <span className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Admin Dashboard</span>
+          </button>
+
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button 
+              onClick={toggleDarkMode}
+              className="p-4 rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group relative"
+            >
+              <motion.div
+                initial={false}
+                animate={{ rotate: isDarkMode ? 180 : 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+              >
+                {isDarkMode ? <Sun size={24} className="text-amber-400" /> : <Moon size={24} />}
+              </motion.div>
+              <span className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {userRole && (
+          <button onClick={handleLogout} className="p-4 text-slate-400 hover:text-red-500 transition-colors group relative">
+            <LogOut size={24} />
+            <span className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Logout</span>
+          </button>
+        )}
+      </nav>
+
+      {/* Mobile Header */}
+      <header className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 sticky top-0 z-50 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+            <ShieldCheck size={18} />
+          </div>
+          <span className="font-black text-lg tracking-tight uppercase dark:text-white">Citizen<span className="text-indigo-600">Care</span></span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={toggleDarkMode}
+            className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"
+          >
+            <motion.div
+              initial={false}
+              animate={{ 
+                rotate: isDarkMode ? 180 : 0,
+                scale: [1, 1.2, 1]
+              }}
+              transition={{ duration: 0.3 }}
+            >
+              {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
+            </motion.div>
+          </button>
+          {userRole ? (
+            <button onClick={handleLogout} className="text-slate-400"><LogOut size={20} /></button>
+          ) : (
+            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+              <User size={16} />
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="md:ml-20 min-h-screen pb-32 md:pb-0">
+        <AnimatePresence mode="wait">
+          {view === 'citizen' && (
+            <motion.div
+              key="citizen"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="p-4 md:p-12 max-w-5xl mx-auto"
+            >
+              <div className="mb-12 text-center md:text-left">
+                <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-4">
+                  VOICE YOUR <span className="text-indigo-600">CONCERNS.</span>
+                </h1>
+                <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl font-medium">
+                  Report municipal issues in seconds. We'll track them, assign them, and notify you when they're resolved.
+                </p>
+              </div>
+              <CitizenForm 
+                step={reportStep} 
+                setStep={setReportStep} 
+                formData={reportData} 
+                setFormData={setReportData} 
+              />
+            </motion.div>
+          )}
+
+          {view === 'admin' && (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-[calc(100vh-64px)] md:h-screen p-4 md:p-8"
+            >
+              <div className="h-full flex flex-col space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Municipal Heatmap</h2>
+                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Global Analytics & Monitoring</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <div className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 shadow-sm flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span>Mumbai City • Live</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <MunicipalHeatmap complaints={complaints} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'officer' && (
+            <motion.div
+              key="officer"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <OfficerDashboard />
+            </motion.div>
+          )}
+
+          {view === 'login' && loginTarget && (
+            <Login 
+              targetRole={loginTarget}
+              onLogin={handleLoginSuccess} 
+              onBack={() => setView('citizen')} 
+            />
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Mobile Navigation Bar */}
+      {view !== 'login' && (
+        <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 flex justify-around py-4 px-6 rounded-[32px] shadow-2xl z-50">
+          <button 
+            onClick={() => setView('citizen')}
+            className={cn("flex flex-col items-center space-y-1 transition-all", view === 'citizen' ? "text-indigo-400 scale-110" : "text-slate-400")}
+          >
+            <PlusCircle size={24} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Report</span>
+          </button>
+          <button 
+            onClick={() => navigateToPortal('officer')}
+            className={cn("flex flex-col items-center space-y-1 transition-all", view === 'officer' ? "text-indigo-400 scale-110" : "text-slate-400")}
+          >
+            <User size={24} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Officer</span>
+          </button>
+          <button 
+            onClick={() => navigateToPortal('admin')}
+            className={cn("flex flex-col items-center space-y-1 transition-all", view === 'admin' ? "text-indigo-400 scale-110" : "text-slate-400")}
+          >
+            <BarChart3 size={24} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Admin</span>
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}
